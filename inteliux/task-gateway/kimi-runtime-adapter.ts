@@ -7,10 +7,7 @@ export interface KimiRuntimeOptions {
   env?: NodeJS.ProcessEnv;
 }
 
-/**
- * Adapter to the existing Kimi CLI. It deliberately delegates execution to
- * the repository's existing Agent Core instead of implementing a second agent.
- */
+/** Delegates execution to the existing Kimi CLI/Agent Core. */
 export class KimiCliRuntime implements TaskRuntime {
   private readonly command: string;
   private readonly baseArgs: string[];
@@ -24,6 +21,9 @@ export class KimiCliRuntime implements TaskRuntime {
 
   run(request: TaskRequest, emit: (event: TaskEvent) => void): Promise<string> {
     return new Promise((resolve, reject) => {
+      const taskId = request.taskId;
+      if (!taskId) return reject(new Error('Task runtime requires a gateway taskId'));
+
       const child = spawn(this.command, [...this.baseArgs, '-p', request.objective], {
         cwd: request.workspace,
         env: this.env,
@@ -32,17 +32,20 @@ export class KimiCliRuntime implements TaskRuntime {
 
       let stdout = '';
       let stderr = '';
+      const emitProgress = (text: string) => emit({
+        type: 'progress', taskId, timestamp: new Date().toISOString(), message: text
+      });
 
       child.stdout.on('data', (chunk: Buffer | string) => {
         const text = chunk.toString();
         stdout += text;
-        emit({ type: 'progress', taskId: '', timestamp: new Date().toISOString(), message: text });
+        emitProgress(text);
       });
 
       child.stderr.on('data', (chunk: Buffer | string) => {
         const text = chunk.toString();
         stderr += text;
-        emit({ type: 'progress', taskId: '', timestamp: new Date().toISOString(), message: text });
+        emitProgress(text);
       });
 
       child.on('error', reject);
