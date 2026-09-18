@@ -14,6 +14,8 @@ export interface TaskRequest {
   workspace: string;
   conversationId?: string;
   metadata?: Record<string, unknown>;
+  /** Internal gateway field; clients must not choose this value. */
+  taskId?: string;
 }
 
 export interface TaskSession {
@@ -32,6 +34,7 @@ export interface TaskRuntime {
 
 export class TaskGateway {
   private readonly sessions = new Map<string, TaskSession>();
+  private readonly listeners = new Map<string, Set<(event: TaskEvent) => void>>();
 
   constructor(private readonly runtime: TaskRuntime) {}
 
@@ -43,14 +46,14 @@ export class TaskGateway {
     const now = new Date().toISOString();
     const session: TaskSession = {
       id,
-      request,
+      request: { ...request, taskId: id },
       status: 'queued',
       createdAt: now,
       updatedAt: now,
       events: [{ type: 'queued', taskId: id, timestamp: now }],
     };
     this.sessions.set(id, session);
-
+    this.listeners.set(id, new Set());
     void this.execute(session);
     return session;
   }
@@ -59,41 +62,47 @@ export class TaskGateway {
     return this.sessions.get(taskId);
   }
 
-  cancel(taskId: string): Promise<void> {
+  async cancel(taskId: string): Promise<void> {
     const session = this.sessions.get(taskId);
     if (!session) throw new Error('task not found');
     session.status = 'cancelled';
     session.updatedAt = new Date().toISOString();
-    return this.runtime.cancel?.(taskId) ?? Promise.resolve();
+    await this.runtime.cancel?.(taskId);
+    this.emit({ type: 'progress', taskId, timestamp: new Date().toISOString(), message: 'Task cancellation requested' });
   }
 
   subscribe(taskId: string, listener: (event: TaskEvent) => void): () => void {
     const session = this.sessions.get(taskId);
     if (!session) throw new Error('task not found');
-    const previous = session.events.slice();
-    previous.forEach(listener);
-    return () => undefined;
+    session.events.forEach(listener);
+    const listeners = this.listeners.get(taskId) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(taskId, listeners);
+    return () => listeners.delete(listener);
+  }
+
+  private emit(event: TaskEvent): void {
+    const session = this.sessions.get(event.taskId);
+    if (!session) return;
+    session.events.push(event);
+    session.updatedAt = event.timestamp;
+    if (event.type === 'started') session.status = 'running';
+    if (event.type === 'confirmation_required') session.status = 'waiting_confirmation';
+    if (event.type === 'completed') session.status = 'completed';
+    if (event.type === 'failed') session.status = 'failed';
+    this.listeners.get(event.taskId)?.forEach(listener => listener(event));
   }
 
   private async execute(session: TaskSession): Promise<void> {
-    const emit = (event: TaskEvent) => {
-      session.events.push(event);
-      session.updatedAt = event.timestamp;
-      if (event.type === 'started') session.status = 'running';
-      if (event.type === 'confirmation_required') session.status = 'waiting_confirmation';
-      if (event.type === 'completed') session.status = 'completed';
-      if (event.type === 'failed') session.status = 'failed';
-    };
-
     try {
-      emit({ type: 'started', taskId: session.id, timestamp: new Date().toISOString(), workspace: session.request.workspace });
-      const result = await this.runtime.run(session.request, emit);
+      this.emit({ type: 'started', taskId: session.id, timestamp: new Date().toISOString(), workspace: session.request.workspace });
+      const result = await this.runtime.run(session.request, event => this.emit(event));
       if (session.status !== 'cancelled') {
-        emit({ type: 'completed', taskId: session.id, timestamp: new Date().toISOString(), result });
+        this.emit({ type: 'completed', taskId: session.id, timestamp: new Date().toISOString(), result });
       }
     } catch (error) {
       if (session.status !== 'cancelled') {
-        emit({ type: 'failed', taskId: session.id, timestamp: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) });
+        this.emit({ type: 'failed', taskId: session.id, timestamp: new Date().toISOString(), error: error instanceof Error ? error.message : String(error) });
       }
     }
   }
