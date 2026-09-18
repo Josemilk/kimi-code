@@ -12,7 +12,7 @@ function json(res: ServerResponse, status: number, value: unknown) {
   res.end(JSON.stringify(value));
 }
 
-async function body(req: IncomingMessage): Promise<any> {
+async function body(req: IncomingMessage): Promise<unknown> {
   let raw = '';
   for await (const chunk of req) raw += chunk.toString();
   return raw ? JSON.parse(raw) : {};
@@ -26,10 +26,33 @@ function authorized(req: IncomingMessage): boolean {
 const server = createServer(async (req, res) => {
   try {
     if (!authorized(req)) return json(res, 401, { error: 'unauthorized' });
+
     if (req.method === 'POST' && req.url === '/v1/tasks') {
       const request = await body(req) as TaskRequest;
       const session = await gateway.start(request);
       return json(res, 202, session);
+    }
+
+    const stream = req.url?.match(/^\/v1\/tasks\/([^/]+)\/events$/);
+    if (req.method === 'GET' && stream) {
+      const session = gateway.get(stream[1]);
+      if (!session) return json(res, 404, { error: 'task_not_found' });
+      res.writeHead(200, {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        'connection': 'keep-alive',
+        'x-accel-buffering': 'no',
+      });
+      const unsubscribe = gateway.subscribe(stream[1], event => {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      });
+      const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 15000);
+      req.on('close', () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        res.end();
+      });
+      return;
     }
 
     const match = req.url?.match(/^\/v1\/tasks\/([^/]+)$/);
