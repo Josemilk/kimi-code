@@ -1,8 +1,8 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 
 const home = process.env.KIMI_CODE_HOME ?? "/tmp/inteliux-kimi";
-const port = Number(process.env.KIMI_PORT ?? 8081);
+const port = Number(process.env.KIMI_PORT ?? 58627);
 
 export async function ensureKimiConfig() {
   const key = process.env.KIMI_API_KEY;
@@ -21,7 +21,7 @@ export async function ensureKimiConfig() {
     'provider = "kimi"',
     `model = ${JSON.stringify(model)}`,
     "max_context_size = 128000",
-    "capabilities = [\"thinking\", \"tool_use\"]",
+    'capabilities = ["thinking", "tool_use"]',
     "",
     `default_model = ${JSON.stringify(model)}`,
     ""
@@ -30,7 +30,7 @@ export async function ensureKimiConfig() {
 }
 
 export function startKimiServer() {
-  const child = spawn("kimi", ["web", "--host", "127.0.0.1", "--port", String(port)], {
+  const child = spawn("kimi", ["web", "--no-open", "--host", "127.0.0.1", "--port", String(port)], {
     env: { ...process.env, KIMI_CODE_HOME: home },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -38,6 +38,14 @@ export function startKimiServer() {
   child.stderr?.on("data", (d) => process.stderr.write(`[kimi] ${d}`));
   child.on("exit", (code, signal) => console.error(`Kimi server exited code=${code} signal=${signal}`));
   return child;
+}
+
+export async function readKimiServerToken() {
+  for (let i = 0; i < 50; i++) {
+    try { return (await readFile(`${home}/server.token`, "utf8")).trim(); }
+    catch { await new Promise(r => setTimeout(r, 200)); }
+  }
+  throw new Error("Kimi web server token was not created in time");
 }
 
 export const kimiBase = () => `http://127.0.0.1:${port}`;
