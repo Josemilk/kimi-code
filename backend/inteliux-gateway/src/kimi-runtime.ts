@@ -10,8 +10,11 @@ export async function ensureKimiConfig() {
   const baseUrl = process.env.KIMI_BASE_URL ?? "https://api.moonshot.ai/v1";
   const model = process.env.KIMI_MODEL;
   if (!model) throw new Error("KIMI_MODEL is not configured");
+  const contextSize = Number(process.env.KIMI_MAX_CONTEXT_SIZE ?? 128000);
   await mkdir(home, { recursive: true, mode: 0o700 });
   const config = [
+    `default_model = ${JSON.stringify(model)}`,
+    "",
     "[providers.kimi]",
     'type = "kimi"',
     `base_url = ${JSON.stringify(baseUrl)}`,
@@ -20,24 +23,18 @@ export async function ensureKimiConfig() {
     `[models.${JSON.stringify(model)}]`,
     'provider = "kimi"',
     `model = ${JSON.stringify(model)}`,
-    "max_context_size = 128000",
+    `max_context_size = ${contextSize}`,
     'capabilities = ["thinking", "tool_use"]',
-    "",
-    `default_model = ${JSON.stringify(model)}`,
     ""
   ].join("\n");
   await writeFile(`${home}/config.toml`, config, { mode: 0o600 });
 }
 
 export function startKimiServer() {
-  const child = spawn("kimi", ["web", "--no-open", "--host", "127.0.0.1", "--port", String(port)], {
+  return spawn("kimi", ["web", "--no-open", "--host", "127.0.0.1", "--port", String(port)], {
     env: { ...process.env, KIMI_CODE_HOME: home },
     stdio: ["ignore", "pipe", "pipe"]
   });
-  child.stdout?.on("data", (d) => process.stdout.write(`[kimi] ${d}`));
-  child.stderr?.on("data", (d) => process.stderr.write(`[kimi] ${d}`));
-  child.on("exit", (code, signal) => console.error(`Kimi server exited code=${code} signal=${signal}`));
-  return child;
 }
 
 export async function readKimiServerToken() {
