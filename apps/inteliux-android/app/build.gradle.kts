@@ -15,10 +15,14 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        val gatewayUrl = project.findProperty("INTELIUX_BACKEND_URL")?.toString()
+            ?: "https://YOUR-CLOUD-RUN-SERVICE.run.app"
+        buildConfigField("String", "INTELIUX_BACKEND_URL", "\"$gatewayUrl\"")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
