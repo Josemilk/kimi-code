@@ -3,15 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "dev": "tsx src/server.ts"
-  },
-  "engines": { "node": ">=20" },
+  "scripts": {"build": "tsc -p tsconfig.json", "start": "node dist/server.js", "dev": "tsx src/server.ts"},
+  "engines": {"node": ">=20"},
   "dependencies": {
     "express": "^5.1.0",
     "firebase-admin": "^13.5.0",
+    "http-proxy-middleware": "^3.0.5",
     "ws": "^8.18.3"
   },
   "devDependencies": {
