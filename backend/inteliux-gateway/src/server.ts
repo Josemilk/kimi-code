@@ -5,6 +5,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { verifyBearerToken } from "./firebase.js";
 import { createTask } from "./tasks.js";
 import { ensureKimiConfig, getKimiServerToken, kimiBase, startKimiServer } from "./kimi-runtime.js";
+import { persistWorkspace } from "./workspace-storage.js";
 
 const app = express();
 app.use(express.json({ limit: "256kb" }));
@@ -66,7 +67,23 @@ server.on("upgrade", async (req, socket, head) => {
         if (upstream.readyState === WebSocket.OPEN) upstream.send(data);
       } catch { client.close(1008, "invalid frame"); }
     });
-    upstream.on("message", data => { if (client.readyState === WebSocket.OPEN) client.send(data); });
+    upstream.on("message", async data => {
+      if (client.readyState === WebSocket.OPEN) client.send(data);
+      try {
+        const frame = JSON.parse(data.toString());
+        const sessionId = String(frame.session_id ?? frame.payload?.session_id ?? "");
+        const terminal = ["turn.ended", "turn.failed", "session.ended"].includes(String(frame.type));
+        if (sessionId && terminal) {
+          const taskSnap = await getFirestore().collectionGroup("tasks").where("sessionId", "==", sessionId).limit(1).get();
+          if (!taskSnap.empty) {
+            const task = taskSnap.docs[0];
+            const taskData = task.data();
+            await persistWorkspace(task.ref.parent.parent?.id ?? uid, String(taskData.projectId ?? "default"), String(taskData.workspace));
+            await task.ref.update({ status: frame.type === "turn.failed" ? "failed" : "completed", updatedAt: new Date() });
+          }
+        }
+      } catch { /* event forwarding must not be interrupted by snapshot errors */ }
+    });
     upstream.on("close", () => client.close());
     client.on("close", () => upstream.close());
     upstream.on("error", () => client.close());
