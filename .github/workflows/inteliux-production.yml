@@ -63,8 +63,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-          cache-dependency-path: backend/inteliux-gateway/package-lock.json
       - name: Install dependencies
         run: npm install
       - name: Typecheck/build
@@ -104,7 +102,7 @@ jobs:
             --project="$PROJECT_ID" \
             --region="$REGION" \
             --platform=managed \
-            --no-allow-unauthenticated \
+            --allow-unauthenticated \
             --service-account="$RUNTIME_SA" \
             --set-env-vars="KIMI_BASE_URL=$KIMI_BASE_URL,KIMI_MODEL=$KIMI_MODEL,INTELIUX_STORAGE_BUCKET=$STORAGE_BUCKET" \
             --set-secrets="KIMI_API_KEY=inteliux-kimi-api-key:latest" \
