@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Inteliux" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">#02061D</item>
+        <item name="android:navigationBarColor">#02061D</item>
+    </style>
+</resources>

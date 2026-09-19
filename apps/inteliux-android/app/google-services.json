@@ -1,0 +1,35 @@
+{
+  "project_info": {
+    "project_number": "541602559469",
+    "project_id": "inteliux-os",
+    "storage_bucket": "inteliux-os.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:541602559469:android:496af6a8ba1b1a85bfa3e4",
+        "android_client_info": { "package_name": "com.inteliux.os" }
+      },
+      "oauth_client": [
+        {
+          "client_id": "541602559469-2cdulm11a8acck173lcqp6rdlain6r7r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        { "current_key": "AIzaSyAadLWCcg8P9lD1ld1lPGHFGnpvExZJrg8" }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "541602559469-2cdulm11a8acck173lcqp6rdlain6r7r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

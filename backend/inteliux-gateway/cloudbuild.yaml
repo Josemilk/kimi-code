@@ -1,0 +1,37 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/inteliux/inteliux-gateway:$COMMIT_SHA
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/inteliux/inteliux-gateway:$COMMIT_SHA
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - inteliux-gateway
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/inteliux/inteliux-gateway:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --no-allow-unauthenticated
+      - --service-account=${_SERVICE_ACCOUNT}
+      - --set-env-vars=KIMI_BASE_URL=${_KIMI_BASE_URL},KIMI_MODEL=${_KIMI_MODEL},INTELIUX_STORAGE_BUCKET=${_STORAGE_BUCKET}
+      - --set-secrets=KIMI_API_KEY=inteliux-kimi-api-key:latest
+      - --memory=2Gi
+      - --cpu=2
+      - --timeout=3600
+      - --min-instances=0
+      - --max-instances=10
+substitutions:
+  _REGION: us-central1
+  _SERVICE_ACCOUNT: REPLACE_WITH_RUNTIME_SERVICE_ACCOUNT
+  _STORAGE_BUCKET: REPLACE_WITH_FIREBASE_STORAGE_BUCKET
+  _KIMI_BASE_URL: https://api.moonshot.ai/v1
+  _KIMI_MODEL: kimi-for-coding
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/inteliux/inteliux-gateway:$COMMIT_SHA

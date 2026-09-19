@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">INTELIUX OS</string>
+    <string name="settings">Configuración</string>
+    <string name="language">Idioma</string>
+    <string name="spanish">Español</string>
+    <string name="english">English</string>
+    <string name="system_language">Idioma del sistema</string>
+    <string name="save">Guardar</string>
+    <string name="login">Iniciar sesión</string>
+    <string name="register">Registrarse</string>
+    <string name="email">Correo electrónico</string>
+    <string name="password">Contraseña</string>
+    <string name="task">Tarea</string>
+    <string name="send">Enviar</string>
+</resources>
