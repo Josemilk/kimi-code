@@ -45,4 +45,8 @@ export async function readKimiServerToken() {
   throw new Error("Kimi web server token was not created in time");
 }
 
+export async function getKimiServerToken() {
+  return process.env.KIMI_SERVER_TOKEN || readKimiServerToken();
+}
+
 export const kimiBase = () => `http://127.0.0.1:${port}`;
