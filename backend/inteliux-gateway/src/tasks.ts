@@ -2,6 +2,7 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { getKimiServerToken, kimiBase } from "./kimi-runtime.js";
+import { restoreWorkspace } from "./workspace-storage.js";
 
 const root = process.env.INTELIUX_WORKSPACE_ROOT ?? "/tmp/inteliux-workspaces";
 
@@ -14,8 +15,10 @@ function safePart(value: string) {
 export async function createTask(uid: string, objective: string, projectId = "default") {
   if (!objective.trim()) throw new Error("objective is required");
   const taskRef = getFirestore().collection("users").doc(uid).collection("tasks").doc();
-  const workspace = path.join(root, safePart(uid), safePart(projectId), taskRef.id);
+  const workspace = path.join(root, safePart(uid), safePart(projectId));
   await mkdir(workspace, { recursive: true, mode: 0o700 });
+  await restoreWorkspace(uid, projectId, workspace);
+
   const token = await getKimiServerToken();
   const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
   const response = await fetch(`${kimiBase()}/api/v1/sessions`, {
